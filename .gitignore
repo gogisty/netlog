@@ -1,0 +1,8 @@
+# Output logs
+logs/
+netlog/__pycache__/__init__.cpython-311.pyc
+netlog/__pycache__/aggregate.cpython-311.pyc
+netlog/__pycache__/io.cpython-311.pyc
+netlog/__pycache__/model.cpython-311.pyc
+netlog/__pycache__/ping.cpython-311.pyc
+netlog/__pycache__/report.cpython-311.pyc
