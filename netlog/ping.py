@@ -18,12 +18,14 @@ def is_supported_os(os_name: str) -> bool:
 
 
 def build_ping_command(target: str, timeout_ms: int) -> list[str]:
+    if timeout_ms <= 0:
+        raise ValueError(f"ping timeout must be a positive integer in milliseconds, got {timeout_ms}")
     os_name = detect_os()
     if os_name == "windows":
         return ["ping", "-n", "1", "-w", str(timeout_ms), target]
     if os_name == "linux":
         # Linux ping timeout is in seconds; keep millisecond precision as fractional seconds.
-        timeout_s = max(timeout_ms, 1) / 1000.0
+        timeout_s = timeout_ms / 1000.0
         timeout_arg = f"{timeout_s:.3f}".rstrip("0").rstrip(".")
         return ["ping", "-c", "1", "-W", timeout_arg, target]
     raise RuntimeError("Unsupported OS. This tool currently supports Linux and Windows.")
