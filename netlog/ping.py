@@ -20,19 +20,18 @@ def build_ping_command(target: str, timeout_ms: int) -> list[str]:
     if os_name == "windows":
         return ["ping", "-n", "1", "-w", str(timeout_ms), target]
     if os_name == "linux":
-        # Linux ping timeout is in seconds; -W is per reply timeout.
-        timeout_s = max(1, math.ceil(timeout_ms / 1000.0))
-        return ["ping", "-n", "-c", "1", "-W", str(timeout_s), target]
+        # Linux ping timeout is in seconds; keep millisecond precision as fractional seconds.
+        timeout_s = max(timeout_ms, 1) / 1000.0
+        timeout_arg = f"{timeout_s:.3f}".rstrip("0").rstrip(".")
+        return ["ping", "-n", "-c", "1", "-W", timeout_arg, target]
     raise RuntimeError("Unsupported OS. This tool currently supports Linux and Windows.")
 
 
 def run_ping_once(target: str, timeout_ms: int) -> Tuple[bool, Optional[float], str]:
     """
-    Runs: ping -n 1 -w <timeout_ms> <target>
+    Runs one OS-specific single-echo ping command.
     Returns: (success, latency_ms or None, raw_output_text)
     """
-    # -n 1 = send 1 echo
-    # -w <ms> = timeout per reply (ms)
     cmd = build_ping_command(target, timeout_ms)
 
     try:
