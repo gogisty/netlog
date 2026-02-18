@@ -25,7 +25,7 @@ def build_ping_command(target: str, timeout_ms: int) -> list[str]:
         # Linux ping timeout is in seconds; keep millisecond precision as fractional seconds.
         timeout_s = max(timeout_ms, 1) / 1000.0
         timeout_arg = f"{timeout_s:.3f}".rstrip("0").rstrip(".")
-        return ["ping", "-n", "-c", "1", "-W", timeout_arg, target]
+        return ["ping", "-c", "1", "-W", timeout_arg, target]
     raise RuntimeError("Unsupported OS. This tool currently supports Linux and Windows.")
 
 
