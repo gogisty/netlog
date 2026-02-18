@@ -44,9 +44,9 @@ class Outage:
 
 
 class BarStatus(Enum):
-    GOOD = "G"
-    WARN = "Y"
-    BAD = "R"
+    GOOD = "|"
+    WARN = "%"
+    BAD = "X"
 
 
 @dataclass(frozen=True)
