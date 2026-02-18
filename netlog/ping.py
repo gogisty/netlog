@@ -4,9 +4,11 @@ import math
 import platform
 import re
 import subprocess
+from functools import lru_cache
 from typing import Dict, Optional, Tuple
 
 
+@lru_cache(maxsize=1)
 def detect_os() -> str:
     return platform.system().lower()
 
@@ -29,7 +31,8 @@ def build_ping_command(target: str, timeout_ms: int) -> list[str]:
 
 def run_ping_once(target: str, timeout_ms: int) -> Tuple[bool, Optional[float], str]:
     """
-    Runs one OS-specific single-echo ping command.
+    Runs one OS-specific single-echo ping command built by build_ping_command().
+    Windows uses ping -n/-w (ms timeout); Linux uses ping -c/-W (seconds timeout).
     Returns: (success, latency_ms or None, raw_output_text)
     """
     cmd = build_ping_command(target, timeout_ms)
@@ -38,7 +41,7 @@ def run_ping_once(target: str, timeout_ms: int) -> Tuple[bool, Optional[float], 
         # text=True gives str, not bytes
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=(timeout_ms / 1000.0 + 2.0))
         out = (proc.stdout or "") + "\n" + (proc.stderr or "")
-        # Both Linux and Windows ping output include time=<N>ms on success.
+        # Parse latency from cross-platform ping output (typically time=<N>ms or time<1ms).
         if proc.returncode == 0:
             # Parse time=XXms or time<1ms
             m = re.search(r"time[=<]\s*(\d+(?:\.\d+)?)\s*ms", out, re.IGNORECASE)
