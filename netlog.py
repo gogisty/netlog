@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-netlog.py — Simple home internet stability logger (Windows-friendly)
+netlog.py — Simple home internet stability logger (Linux and Windows)
 
 See README.md for usage, examples, and output details.
 """
@@ -29,7 +29,7 @@ from netlog.model import (
     iso_ts,
     local_now,
 )
-from netlog.ping import choose_best_latency, ping_targets
+from netlog.ping import choose_best_latency, detect_os, is_supported_os, ping_targets
 from netlog.report import build_summary, plot_latency_png, render_bar_line
 
 
@@ -115,6 +115,12 @@ def main() -> int:
     error = validate_config(cfg)
     if error:
         print(error, file=sys.stderr)
+        return 2
+
+    os_name = detect_os()
+    print(f"Detected OS: {os_name}")
+    if not is_supported_os(os_name):
+        print("ERROR: Unsupported OS. This tool currently supports Linux and Windows.", file=sys.stderr)
         return 2
 
     run_id = local_now().strftime("run_%Y%m%d_%H%M%S")

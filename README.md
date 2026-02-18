@@ -1,6 +1,6 @@
 # netlog
 
-Simple home internet stability logger (Windows-friendly).
+Simple home internet stability logger (Linux and Windows).
 
 ## Overview
 - Pings two stable targets (Google DNS 8.8.8.8 and Cloudflare 1.1.1.1) every N seconds using the system `ping` command.
@@ -15,6 +15,7 @@ rather than "did a specific path to one host work". Both targets are still logge
 
 ## Requirements
 - Python 3 (standard library only).
+- Supported OS: Linux and Windows (detected at startup).
 - Optional: `matplotlib` for the PNG graph (`pip install matplotlib`).
 
 ## Quick start

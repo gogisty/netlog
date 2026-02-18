@@ -1,30 +1,53 @@
 from __future__ import annotations
 
 import math
+import platform
 import re
 import subprocess
 from typing import Dict, Optional, Tuple
 
 
-def run_ping_once_windows(target: str, timeout_ms: int) -> Tuple[bool, Optional[float], str]:
+DETECTED_OS = platform.system().lower()
+
+
+def detect_os() -> str:
+    return DETECTED_OS
+
+
+def is_supported_os(os_name: str) -> bool:
+    return os_name in {"windows", "linux"}
+
+
+def build_ping_command(target: str, timeout_ms: int) -> list[str]:
+    os_name = DETECTED_OS
+    if os_name == "windows":
+        return ["ping", "-n", "1", "-w", str(timeout_ms), target]
+    if os_name == "linux":
+        # Linux ping timeout is in seconds; -W is per reply timeout.
+        timeout_s = max(1, math.ceil(timeout_ms / 1000.0))
+        return ["ping", "-n", "-c", "1", "-W", str(timeout_s), target]
+    raise RuntimeError("Unsupported OS. This tool currently supports Linux and Windows.")
+
+
+def run_ping_once(target: str, timeout_ms: int) -> Tuple[bool, Optional[float], str]:
     """
-    Runs: ping -n 1 -w <timeout_ms> <target>
+    Run one ICMP ping to ``target`` with an OS-appropriate command.
+
+    - Windows: ``ping -n 1 -w <timeout_ms> <target>``
+    - Linux: ``ping -n -c 1 -W <timeout_seconds> <target>``
+
     Returns: (success, latency_ms or None, raw_output_text)
     """
-    # -n 1 = send 1 echo
-    # -w <ms> = timeout per reply (ms)
-    cmd = ["ping", "-n", "1", "-w", str(timeout_ms), target]
+    cmd = build_ping_command(target, timeout_ms)
 
     try:
         # text=True gives str, not bytes
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=(timeout_ms / 1000.0 + 2.0))
         out = (proc.stdout or "") + "\n" + (proc.stderr or "")
-        # Windows ping success usually has "Reply from" and "time=<N>ms"
-        # Could also show "time<1ms"
-        # Timeout usually: "Request timed out."
+        # Both Linux and Windows ping output include time=<N>ms on success.
         if proc.returncode == 0:
             # Parse time=XXms or time<1ms
-            m = re.search(r"time[=<]\s*(\d+)\s*ms", out, re.IGNORECASE)
+            m = re.search(r"time[=<]\s*(\d+(?:\.\d+)?)\s*ms", out, re.IGNORECASE)
             if m:
                 return True, float(m.group(1)), out
             # Sometimes localized or odd output; treat as success without a parsed time
@@ -45,7 +68,7 @@ def run_ping_once_windows(target: str, timeout_ms: int) -> Tuple[bool, Optional[
 def ping_targets(targets: list[str], timeout_ms: int) -> Dict[str, float]:
     latency: Dict[str, float] = {}
     for target in targets:
-        ok, ms, _out = run_ping_once_windows(target, timeout_ms)
+        ok, ms, _out = run_ping_once(target, timeout_ms)
         if ok:
             # If we couldn't parse the time, record as NaN but not timeout.
             if ms is None:
