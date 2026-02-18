@@ -29,7 +29,7 @@ from netlog.model import (
     iso_ts,
     local_now,
 )
-from netlog.ping import choose_best_latency, ping_targets
+from netlog.ping import choose_best_latency, detect_os, is_supported_os, ping_targets
 from netlog.report import build_summary, plot_latency_png, render_bar_line
 
 
@@ -116,6 +116,12 @@ def main() -> int:
     if error:
         print(error, file=sys.stderr)
         return 2
+
+    os_name = detect_os()
+    if not is_supported_os(os_name):
+        print("ERROR: Unsupported OS. This tool currently supports Linux and Windows.", file=sys.stderr)
+        return 2
+    print(f"Detected OS: {os_name}")
 
     run_id = local_now().strftime("run_%Y%m%d_%H%M%S")
     run_outdir = cfg.outdir / run_id

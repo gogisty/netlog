@@ -1,30 +1,52 @@
 from __future__ import annotations
 
 import math
+import platform
 import re
 import subprocess
+from functools import lru_cache
 from typing import Dict, Optional, Tuple
 
 
-def run_ping_once_windows(target: str, timeout_ms: int) -> Tuple[bool, Optional[float], str]:
+@lru_cache(maxsize=1)
+def detect_os() -> str:
+    return platform.system().lower()
+
+
+def is_supported_os(os_name: str) -> bool:
+    return os_name in {"windows", "linux"}
+
+
+def build_ping_command(target: str, timeout_ms: int) -> list[str]:
+    if timeout_ms <= 0:
+        raise ValueError(f"ping timeout must be a positive integer in milliseconds, got {timeout_ms}")
+    os_name = detect_os()
+    if os_name == "windows":
+        return ["ping", "-n", "1", "-w", str(timeout_ms), target]
+    if os_name == "linux":
+        # Linux ping timeout is in seconds; keep millisecond precision as fractional seconds.
+        timeout_s = timeout_ms / 1000.0
+        timeout_arg = f"{timeout_s:.3f}".rstrip("0").rstrip(".")
+        return ["ping", "-c", "1", "-W", timeout_arg, target]
+    raise RuntimeError("Unsupported OS. This tool currently supports Linux and Windows.")
+
+
+def run_ping_once(target: str, timeout_ms: int) -> Tuple[bool, Optional[float], str]:
     """
-    Runs: ping -n 1 -w <timeout_ms> <target>
+    Runs one OS-specific single-echo ping command built by build_ping_command().
+    Windows uses ping -n/-w (ms timeout); Linux uses ping -c/-W (seconds timeout).
     Returns: (success, latency_ms or None, raw_output_text)
     """
-    # -n 1 = send 1 echo
-    # -w <ms> = timeout per reply (ms)
-    cmd = ["ping", "-n", "1", "-w", str(timeout_ms), target]
+    cmd = build_ping_command(target, timeout_ms)
 
     try:
         # text=True gives str, not bytes
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=(timeout_ms / 1000.0 + 2.0))
         out = (proc.stdout or "") + "\n" + (proc.stderr or "")
-        # Windows ping success usually has "Reply from" and "time=<N>ms"
-        # Could also show "time<1ms"
-        # Timeout usually: "Request timed out."
+        # Parse latency from cross-platform ping output (typically time=<N>ms or time<1ms).
         if proc.returncode == 0:
             # Parse time=XXms or time<1ms
-            m = re.search(r"time[=<]\s*(\d+)\s*ms", out, re.IGNORECASE)
+            m = re.search(r"time[=<]\s*(\d+(?:\.\d+)?)\s*ms", out, re.IGNORECASE)
             if m:
                 return True, float(m.group(1)), out
             # Sometimes localized or odd output; treat as success without a parsed time
@@ -45,7 +67,7 @@ def run_ping_once_windows(target: str, timeout_ms: int) -> Tuple[bool, Optional[
 def ping_targets(targets: list[str], timeout_ms: int) -> Dict[str, float]:
     latency: Dict[str, float] = {}
     for target in targets:
-        ok, ms, _out = run_ping_once_windows(target, timeout_ms)
+        ok, ms, _out = run_ping_once(target, timeout_ms)
         if ok:
             # If we couldn't parse the time, record as NaN but not timeout.
             if ms is None:
