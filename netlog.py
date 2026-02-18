@@ -121,6 +121,7 @@ def main() -> int:
     if not is_supported_os(os_name):
         print("ERROR: Unsupported OS. This tool currently supports Linux and Windows.", file=sys.stderr)
         return 2
+    print(f"Detected OS: {os_name}")
 
     run_id = local_now().strftime("run_%Y%m%d_%H%M%S")
     run_outdir = cfg.outdir / run_id
